@@ -54,6 +54,12 @@ var (
 	ComputedRoutesType                  = types.ComputedRoutesType
 )
 
+const (
+	// Important constants
+
+	NullRouteBackend = types.NullRouteBackend
+)
+
 // RegisterTypes adds all resource types within the "catalog" API group
 // to the given type registry
 func RegisterTypes(r resource.Registry) {
