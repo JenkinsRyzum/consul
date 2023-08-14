@@ -12,10 +12,15 @@ import (
 
 type Dependencies struct {
 	TrustDomainFetcher sidecarproxy.TrustDomainFetcher
+	LocalDatacenter    string
 }
 
 func Register(mgr *controller.Manager, deps Dependencies) {
-	c := sidecarproxycache.New()
-	m := sidecarproxymapper.New(c)
-	mgr.Register(sidecarproxy.Controller(c, m, deps.TrustDomainFetcher))
+	destinationsCache := sidecarproxycache.NewDestinationsCache()
+	proxyCfgCache := sidecarproxycache.NewProxyConfigurationCache()
+	m := sidecarproxymapper.New(destinationsCache, proxyCfgCache)
+
+	mgr.Register(
+		sidecarproxy.Controller(destinationsCache, proxyCfgCache, m, deps.TrustDomainFetcher, deps.LocalDatacenter),
+	)
 }
