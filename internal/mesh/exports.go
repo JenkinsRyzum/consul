@@ -6,6 +6,7 @@ package mesh
 import (
 	"github.com/hashicorp/consul/internal/controller"
 	"github.com/hashicorp/consul/internal/mesh/internal/controllers"
+	"github.com/hashicorp/consul/internal/mesh/internal/controllers/routes"
 	"github.com/hashicorp/consul/internal/mesh/internal/types"
 	"github.com/hashicorp/consul/internal/resource"
 )
@@ -52,6 +53,20 @@ var (
 	TCPRouteType                        = types.TCPRouteType
 	DestinationPolicyType               = types.DestinationPolicyType
 	ComputedRoutesType                  = types.ComputedRoutesType
+
+	// Controller Statuses
+
+	RoutesStatusKey                                                = routes.StatusKey
+	RoutesStatusConditionAccepted                                  = routes.StatusConditionAccepted
+	RoutesStatusConditionAcceptedMissingParentRefReason            = routes.MissingParentRefReason
+	RoutesStatusConditionAcceptedMissingBackendRefReason           = routes.MissingBackendRefReason
+	RoutesStatusConditionAcceptedParentRefOutsideMeshReason        = routes.ParentRefOutsideMeshReason
+	RoutesStatusConditionAcceptedBackendRefOutsideMeshReason       = routes.BackendRefOutsideMeshReason
+	RoutesStatusConditionAcceptedParentRefUsingMeshPortReason      = routes.ParentRefUsingMeshPortReason
+	RoutesStatusConditionAcceptedBackendRefUsingMeshPortReason     = routes.BackendRefUsingMeshPortReason
+	RoutesStatusConditionAcceptedUnknownParentRefPortReason        = routes.UnknownParentRefPortReason
+	RoutesStatusConditionAcceptedUnknownBackendRefPortReason       = routes.UnknownBackendRefPortReason
+	RoutesStatusConditionAcceptedConflictNotBoundToParentRefReason = routes.ConflictNotBoundToParentRefReason
 )
 
 const (
