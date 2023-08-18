@@ -41,3 +41,23 @@ func (resource *Resource) Read(gvk *GVK, resourceName string, q *QueryOptions) (
 
 	return out, nil
 }
+
+func (resource *Resource) Apply(gvk *GVK, resourceName string, q *QueryOptions) ([]byte, error) {
+	r := resource.c.newRequest("PUT", fmt.Sprintf("/api/%s/%s/%s/%s", gvk.Group, gvk.Version, gvk.Kind, resourceName))
+	r.setQueryOptions(q)
+	_, resp, err := resource.c.doRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResponseBody(resp)
+	if err := requireOK(resp); err != nil {
+		return nil, err
+	}
+
+	var out []byte
+	if err := decodeBody(resp, &out); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
