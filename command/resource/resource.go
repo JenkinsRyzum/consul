@@ -9,6 +9,15 @@ import (
 	"github.com/hashicorp/consul/command/flags"
 )
 
+const (
+	ResourceFormatJSON   = "json"
+	ResourceFormatPretty = "pretty"
+)
+
+func GetSupportedFormats() []string {
+	return []string{ResourceFormatJSON, ResourceFormatPretty}
+}
+
 func New() *cmd {
 	return &cmd{}
 }
@@ -37,7 +46,7 @@ in the subcommands or the documentation.
 
 Read a resource:
 
-$ consul resource read [type] [name] -partition=<default> -namespace=<default> -peer=<local> -consistent=<false> -json
+$ consul resource write [type] [name] -partition=<default> -namespace=<default> -peer=<local> -consistent=<false> -json
 
 Run
 

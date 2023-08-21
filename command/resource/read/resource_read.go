@@ -26,6 +26,8 @@ type cmd struct {
 	flags *flag.FlagSet
 	http  *flags.HTTPFlags
 	help  string
+
+	format string
 }
 
 func (c *cmd) init() {
@@ -39,7 +41,10 @@ func (c *cmd) init() {
 }
 
 func (c *cmd) Run(args []string) int {
-	if err := c.flags.Parse(args); err != nil {
+	// skip resource type and name
+	flagArgs := args[2:]
+
+	if err := c.flags.Parse(flagArgs); err != nil {
 		if err == flag.ErrHelp {
 			return 0
 		}
@@ -47,7 +52,6 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	args = c.flags.Args()
 	gvk, resourceName, e := parseArgs(args)
 	if e != nil {
 		c.UI.Error(fmt.Sprintf("Your argument format is incorrect: %s", e))
@@ -84,7 +88,6 @@ func (c *cmd) Run(args []string) int {
 }
 
 func parseArgs(args []string) (gvk *api.GVK, resourceName string, e error) {
-	fmt.Println(args)
 	if len(args) < 2 {
 		return nil, "", fmt.Errorf("Must specify two arguments: resource types and resource name")
 	}
