@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/mitchellh/cli"
 
+	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/command/flags"
+	"github.com/hashicorp/consul/command/helpers"
+	"github.com/hashicorp/consul/internal/resourcehcl"
+	"github.com/hashicorp/consul/proto-public/pbresource"
 )
 
 func New(ui cli.Ui) *cmd {
@@ -26,10 +29,15 @@ type cmd struct {
 	flags *flag.FlagSet
 	http  *flags.HTTPFlags
 	help  string
+
+	filePath  string
 }
 
 func (c *cmd) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.StringVar(&c.filePath, "f", "",
+		"File path with resource definition")
+
 	c.http = &flags.HTTPFlags{}
 	flags.Merge(c.flags, c.http.ClientFlags())
 	flags.Merge(c.flags, c.http.ServerFlags())
@@ -47,12 +55,23 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	args = c.flags.Args()
-	gvk, resourceName, e := parseArgs(args)
-	if e != nil {
-		c.UI.Error(fmt.Sprintf("Your argument format is incorrect: %s", e))
-		return 1
+	var parsedResource *pbresource.Resource
+
+	if c.filePath != "" {
+		data, err := helpers.LoadDataSourceNoRaw(c.filePath, nil)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Failed to load data: %v", err))
+			return 1
+		}
+
+		parsedResource, err = parseResource(data)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Your argument format is incorrect: %s", err))
+			return 1
+		}
 	}
+
+	fmt.Printf("**** parsed resource: %+v", parsedResource)
 
 	client, err := c.http.APIClient()
 	if err != nil {
@@ -61,15 +80,27 @@ func (c *cmd) Run(args []string) int {
 	}
 
 	opts := &api.QueryOptions{
-		Namespace: c.http.Namespace(),
-		Partition: c.http.Partition(),
-		Peer:      c.http.PeerName(),
+		Namespace: parsedResource.Id.Tenancy.GetNamespace(),
+		Partition: parsedResource.Id.Tenancy.GetPartition(),
+		Peer:      parsedResource.Id.Tenancy.GetPeerName(),
 		Token:     c.http.Token(),
 	}
 
-	entry, err := client.Resource().Apply(gvk, resourceName, opts)
+	gvk := &api.GVK{
+		Group: parsedResource.Id.Type.GetGroup(),
+		Version: parsedResource.Id.Type.GetGroupVersion(),
+		Kind: parsedResource.Id.Type.GetKind(),
+	}
+
+	writeRequest := &api.WriteRequest{
+		Data: parsedResource.GetData(),
+		Metadata: parsedResource.GetMetadata(),
+		Owner: parsedResource.GetOwner(),
+	}
+
+	entry, _, err := client.Resource().Apply(gvk,  parsedResource.Id.GetName(), opts, writeRequest)
 	if err != nil {
-		c.UI.Error(fmt.Sprintf("Error reading resource %s/%s: %v", gvk, resourceName, err))
+		c.UI.Error(fmt.Sprintf("Error writing resource %s/%s: %v", gvk, parsedResource.Id.GetName(), err))
 		return 1
 	}
 
@@ -83,21 +114,15 @@ func (c *cmd) Run(args []string) int {
 	return 0
 }
 
-func parseArgs(args []string) (gvk *api.GVK, resourceName string, e error) {
-	fmt.Println(args)
-	if len(args) < 2 {
-		return nil, "", fmt.Errorf("Must specify two arguments: resource types and resource name")
+func parseResource(data string) (resource *pbresource.Resource, e error) {
+	// parse the data
+	raw := []byte(data)
+	resource, err := resourcehcl.Unmarshal(raw, consul.NewTypeRegistry())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode resource from input file: %v", err)
 	}
 
-	s := strings.Split(args[0], ".")
-	gvk = &api.GVK{
-		Group:   s[0],
-		Version: s[1],
-		Kind:    s[2],
-	}
-
-	resourceName = args[1]
-	return
+	return resource, nil
 }
 
 func (c *cmd) Synopsis() string {

@@ -113,6 +113,7 @@ func RegisterTypes(r resource.Registry) {
 		if err := anypb.UnmarshalTo(res.Data, artist, proto.UnmarshalOptions{}); err != nil {
 			return err
 		}
+		fmt.Printf("***** artist: %+v", artist)
 		if artist.Name == "" {
 			return fmt.Errorf("artist.name required")
 		}

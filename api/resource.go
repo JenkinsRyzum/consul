@@ -5,6 +5,10 @@ package api
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/hashicorp/consul/proto-public/pbresource"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type Resource struct {
@@ -15,6 +19,12 @@ type GVK struct {
 	Group   string
 	Version string
 	Kind    string
+}
+
+type WriteRequest struct {
+	Metadata map[string]string `json:"metadata"`
+	Data     *anypb.Any   `json:"data"`
+	Owner    *pbresource.ID    `json:"owner"`
 }
 
 // Config returns a handle to the Config endpoints
@@ -42,22 +52,29 @@ func (resource *Resource) Read(gvk *GVK, resourceName string, q *QueryOptions) (
 	return out, nil
 }
 
-func (resource *Resource) Apply(gvk *GVK, resourceName string, q *QueryOptions) ([]byte, error) {
-	r := resource.c.newRequest("PUT", fmt.Sprintf("/api/%s/%s/%s/%s", gvk.Group, gvk.Version, gvk.Kind, resourceName))
+func (resource *Resource) Apply(gvk *GVK, resourceName string, q *QueryOptions, payload *WriteRequest) (map[string]interface{}, *WriteMeta, error) {
+	url := strings.ToLower(fmt.Sprintf("/api/%s/%s/%s/%s", gvk.Group, gvk.Version, gvk.Kind, resourceName))
+
+	fmt.Printf("**** url: %+v", url)
+	r := resource.c.newRequest("PUT", url)
 	r.setQueryOptions(q)
-	_, resp, err := resource.c.doRequest(r)
+	r.obj = payload
+	rtt, resp, err := resource.c.doRequest(r)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer closeResponseBody(resp)
 	if err := requireOK(resp); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	var out []byte
+	wm := &WriteMeta{}
+	wm.RequestTime = rtt
+
+	var out map[string]interface{}
 	if err := decodeBody(resp, &out); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return out, nil
+	return out, wm, nil
 }
